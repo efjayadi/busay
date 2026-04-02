@@ -15,8 +15,8 @@
             --primary: #ffb7b2;
             --accent: #ff9aa2;
             --bg-app: #ffffff;
-            --bear-brown: #6d4c41;
             --text-main: #4a3728;
+            --kindle-bg: #f5f5f5;
         }
 
         body {
@@ -29,6 +29,7 @@
             color: var(--text-main);
         }
 
+        /* MOTION DOTS - Top Layer */
         #motion-canvas {
             position: fixed;
             top: 0;
@@ -36,104 +37,109 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 1;
+            z-index: 50; 
         }
 
-        /* 3D Book Styles */
-        .book-container {
-            position: absolute;
-            top: 45%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90vw;
-            height: 75vh;
-            max-width: 500px;
-            perspective: 2000px;
-            z-index: 10;
+        /* Kindle Reader Container */
+        #reader-container {
+            position: fixed;
+            inset: 0;
             display: none;
+            background: var(--kindle-bg);
+            z-index: 10;
         }
 
-        .book {
-            position: relative;
+        #page-view {
             width: 100%;
             height: 100%;
-            transform-style: preserve-3d;
-        }
-
-        .page {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            background: rgba(255, 255, 255, 0.98);
-            color: var(--text-main);
-            box-sizing: border-box;
-            transform-origin: left;
-            transform-style: preserve-3d;
-            transition: transform 0.8s cubic-bezier(0.15, 0, 0.15, 1);
-            border-radius: 4px 12px 12px 4px;
-            box-shadow: 
-                inset 8px 0 15px rgba(0,0,0,0.03),
-                5px 5px 20px rgba(0,0,0,0.1);
-            backface-visibility: hidden;
-            border: 1px solid #eee;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
         }
 
-        .page canvas {
-            width: 100% !important;
-            height: auto !important;
-            display: block;
+        #page-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            background: white;
         }
 
-        .page.flipped {
-            transform: rotateY(-170deg) scale(0.95);
-            opacity: 0;
-            pointer-events: none;
+        /* Kindle HUD (Heads Up Display) */
+        .hud-element {
+            position: fixed;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            z-index: 60;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 16px 24px;
         }
 
-        /* Bottom Sheet UI */
-        .bottom-sheet {
+        #hud-top {
+            top: 0;
+            transform: translateY(-100%);
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #hud-bottom {
+            bottom: 0;
+            transform: translateY(100%);
+            border-top: 1px solid #eee;
+        }
+
+        .hud-active #hud-top,
+        .hud-active #hud-bottom {
+            transform: translateY(0);
+        }
+
+        /* Settings Sheet - Bubu Style */
+        .settings-sheet {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             background: white;
-            border-radius: 40px 40px 0 0;
-            padding: 24px;
-            z-index: 30;
-            box-shadow: 0 -10px 30px rgba(109, 76, 65, 0.1);
-            transform: translateY(calc(100% - 70px));
-            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-            border-top: 5px solid var(--primary);
-            display: none;
+            border-radius: 32px 32px 0 0;
+            padding: 32px 24px;
+            z-index: 70;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+            border-top: 6px solid var(--primary);
         }
 
-        .bottom-sheet.open {
+        .settings-sheet.open {
             transform: translateY(0);
         }
 
-        .drag-handle {
-            width: 50px;
-            height: 6px;
-            background: #f0e4d7;
-            border-radius: 10px;
-            margin: 0 auto 20px auto;
-        }
-
+        /* Splash/Permission Screen */
         .permission-screen {
             position: fixed;
             inset: 0;
             z-index: 100;
-            background: #ffffff !important; /* Force white */
+            background: #ffffff;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
+        }
+
+        .gif-wrapper {
+            width: 220px;
+            min-height: 220px;
+            margin-bottom: 10px;
+            pointer-events: none;
+            background-color: #ffffff !important;
+        }
+
+        .tenor-gif-embed, .tenor-gif-embed iframe {
+            background-color: #ffffff !important;
         }
 
         .bubbly-btn {
@@ -148,7 +154,7 @@
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
 
         .bubbly-btn:active {
@@ -156,28 +162,10 @@
             box-shadow: 0 4px 0 #ff938a;
         }
 
-        /* GIF Styling - Fixed for initial "grey" issue */
-        .gif-wrapper {
-            width: 220px;
-            min-height: 220px; /* Prevent collapse */
-            margin-bottom: 10px;
-            pointer-events: none;
-            background-color: #ffffff !important;
-        }
-
-        /* Override Tenor default grey/black placeholder */
-        .tenor-gif-embed {
-            background-color: #ffffff !important;
-        }
-        
-        .tenor-gif-embed iframe {
-            background-color: #ffffff !important;
-        }
-
         #loading-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.95);
             z-index: 200;
             display: none;
             flex-direction: column;
@@ -187,7 +175,7 @@
 
         input[type="range"] {
             width: 100%;
-            height: 12px;
+            height: 10px;
             background: #fdf2f2;
             border-radius: 10px;
             appearance: none;
@@ -203,19 +191,36 @@
             cursor: pointer;
             border: 3px solid white;
         }
+
+        .tap-zone {
+            position: fixed;
+            top: 15%;
+            bottom: 15%;
+            width: 25%;
+            z-index: 55;
+        }
+
+        #tap-center {
+            position: fixed;
+            top: 20%;
+            bottom: 20%;
+            left: 30%;
+            right: 30%;
+            z-index: 56;
+        }
     </style>
 </head>
-<body>
+<body class="hud-active">
 
     <div id="loading-overlay">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400 mb-4"></div>
-        <p class="font-bold text-pink-400">Bubu is preparing your book...</p>
+        <div class="animate-bounce mb-4 text-6xl">ʕ•ᴥ•ʔ</div>
+        <p class="font-bold text-pink-400">Bubu is turning the pages...</p>
     </div>
 
     <canvas id="motion-canvas"></canvas>
 
+    <!-- Start Screen -->
     <div id="permission-screen" class="permission-screen">
-        <!-- Seamless Bubu GIF with forced white background -->
         <div class="gif-wrapper">
             <div class="tenor-gif-embed" data-postid="25251841" data-share-method="host" data-aspect-ratio="1" data-width="100%">
                 <a href="https://tenor.com/view/tkthao219-bubududu-peach-goma-gif-25251841">Tkthao219 Bubududu Sticker</a>
@@ -223,64 +228,90 @@
         </div>
         
         <h1 class="text-4xl font-bold mb-2 text-[#4a3728]" style="font-family: 'Gaegu', cursive;">BusayBook</h1>
-        <p class="text-slate-500 mb-8 max-w-xs font-medium">Ready for a comfortable trip? ʕ•ᴥ•ʔ</p>
+        <p class="text-slate-500 mb-8 max-w-xs font-medium">Kindle-style reading, nausea-free! 🐾</p>
         
         <label for="pdf-upload" class="bubbly-btn text-xl cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-            CHOOSE YOUR PDF
+            OPEN BOOK
         </label>
         <input type="file" id="pdf-upload" accept="application/pdf" class="hidden">
     </div>
 
-    <!-- Interaction Zones -->
-    <div onclick="prevPage()" class="fixed left-0 top-0 w-1/4 h-3/4 z-15"></div>
-    <div onclick="nextPage()" class="fixed right-0 top-0 w-1/4 h-3/4 z-15"></div>
+    <!-- Kindle Reader UI -->
+    <div id="reader-container">
+        <!-- Reader Bars -->
+        <div id="hud-top" class="hud-element">
+            <button onclick="location.reload()" class="text-[#4a3728]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div class="text-center">
+                <div id="book-title" class="font-bold text-sm truncate max-w-[200px]">Busay Reading...</div>
+                <div id="page-indicator" class="text-[10px] text-slate-400 uppercase tracking-widest">Page 0 of 0</div>
+            </div>
+            <button onclick="toggleSettings()" class="text-[#ff9aa2]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+        </div>
 
-    <div id="book-container" class="book-container">
-        <div id="book" class="book"></div>
+        <div id="hud-bottom" class="hud-element">
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-bold text-slate-400">0%</span>
+                <div class="flex-grow h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-pink-300 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <span id="progress-text" class="text-xs font-bold text-slate-400">0%</span>
+            </div>
+        </div>
+
+        <!-- Kindle Navigation Zones -->
+        <div id="tap-left" class="tap-zone left-0" onclick="prevPage()"></div>
+        <div id="tap-right" class="tap-zone right-0" onclick="nextPage()"></div>
+        <div id="tap-center" onclick="toggleHUD()"></div>
+
+        <div id="page-view">
+            <canvas id="page-canvas"></canvas>
+        </div>
     </div>
 
-    <!-- Bottom Sheet -->
-    <div id="bottom-sheet" class="bottom-sheet">
-        <div class="drag-handle" onclick="toggleSheet()"></div>
+    <!-- Busay Settings Sheet -->
+    <div id="settings-sheet" class="settings-sheet">
+        <div class="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8" onclick="toggleSettings()"></div>
         
         <div class="flex items-center justify-between mb-8">
-            <div class="flex items-center">
-                <div class="w-3 h-3 bg-green-400 rounded-full mr-2 shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div>
-                <span class="text-xs font-bold tracking-widest text-slate-400 uppercase">System Active</span>
-            </div>
-            <button id="mode-toggle" class="text-xs font-bold bg-[#fff5f5] px-4 py-2 rounded-full text-[#ff9aa2] border-2 border-[#ff9aa2]">HEART GRID</button>
+            <h2 class="text-xl font-bold" style="font-family: 'Gaegu';">Bubu's Settings</h2>
+            <button id="mode-toggle" class="bg-pink-50 text-pink-500 px-4 py-2 rounded-full text-xs font-bold border-2 border-pink-200 uppercase tracking-widest">Heart Grid</button>
         </div>
 
-        <div class="space-y-8">
+        <div class="space-y-10">
             <div>
-                <div class="flex justify-between text-sm mb-3">
-                    <span class="text-slate-500 font-bold">Bear Sensitivity</span>
-                    <span id="sense-val" class="text-[#ff9aa2] font-bold">1.5x</span>
+                <div class="flex justify-between text-sm mb-4">
+                    <span class="font-bold text-slate-500">Stability Sensitivity</span>
+                    <span id="sense-val" class="text-pink-400 font-bold">1.5x</span>
                 </div>
-                <input type="range" id="sensitivity" min="0.5" max="4" step="0.1" value="1.5">
+                <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="1.5">
             </div>
 
             <div>
-                <div class="flex justify-between text-sm mb-3">
-                    <span class="text-slate-500 font-bold">Dot Size</span>
-                    <span id="density-val" class="text-[#ff9aa2] font-bold">Squishy</span>
+                <div class="flex justify-between text-sm mb-4">
+                    <span class="font-bold text-slate-500">Horizon Opacity</span>
+                    <span id="opacity-val" class="text-pink-400 font-bold">40%</span>
                 </div>
-                <input type="range" id="dot-size" min="3" max="20" step="1" value="8">
+                <input type="range" id="opacity" min="0.1" max="0.9" step="0.1" value="0.4">
             </div>
 
-            <div>
-                <div class="flex justify-between text-sm mb-3">
-                    <span class="text-slate-500 font-bold">Visibility</span>
-                    <span id="opacity-val" class="text-[#ff9aa2] font-bold">40%</span>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-50 p-4 rounded-2xl">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-2">Display Mode</span>
+                    <button class="w-full text-sm font-bold py-2 bg-white rounded-lg shadow-sm">Paper White</button>
                 </div>
-                <input type="range" id="opacity" min="0.1" max="0.8" step="0.1" value="0.4">
+                <div class="bg-slate-50 p-4 rounded-2xl">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-2">Motion Type</span>
+                    <button id="motion-type-btn" class="w-full text-sm font-bold py-2 bg-white rounded-lg shadow-sm">Smooth Flow</button>
+                </div>
             </div>
         </div>
         
-        <div class="mt-8 pt-4 text-center">
-            <p class="text-[12px] text-[#d4a373] font-bold">Busay's Happy Reading Space ʕ •ᴥ•ʔ</p>
-        </div>
+        <button onclick="toggleSettings()" class="w-full mt-10 py-4 bg-pink-400 text-white font-bold rounded-2xl shadow-lg">DONE ʕ•ᴥ•ʔ</button>
     </div>
 
     <script>
@@ -288,11 +319,10 @@
 
         const canvas = document.getElementById('motion-canvas');
         const ctx = canvas.getContext('2d');
-        const book = document.getElementById('book');
-        const sheet = document.getElementById('bottom-sheet');
-        const pdfUpload = document.getElementById('pdf-upload');
-        const loadingOverlay = document.getElementById('loading-overlay');
+        const pageCanvas = document.getElementById('page-canvas');
+        const pageCtx = pageCanvas.getContext('2d');
         
+        let pdfDoc = null;
         let state = {
             active: false,
             sensitivity: 1.5,
@@ -303,101 +333,114 @@
             targetY: 0,
             currentX: 0,
             currentY: 0,
-            lerpFactor: 0.1, 
-            currentPage: 0,
-            totalPages: 0
+            lerpFactor: 0.08, 
+            currentPage: 1,
+            totalPages: 0,
+            hudVisible: true
         };
+
+        // Swipe & Gesture Logic
+        let touchStartX = 0;
+        window.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
+        window.addEventListener('touchend', e => {
+            const touchEndX = e.changedTouches[0].screenX;
+            const threshold = 60;
+            if (touchEndX < touchStartX - threshold) nextPage();
+            else if (touchEndX > touchStartX + threshold) prevPage();
+        }, { passive: true });
 
         async function handlePdfUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            loadingOverlay.style.display = 'flex';
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('book-title').innerText = file.name.replace('.pdf', '');
             
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            state.totalPages = pdf.numPages;
-            
-            book.innerHTML = '';
-            
-            // Render first 50 pages
-            const pagesToRender = Math.min(state.totalPages, 50);
-            
-            for (let i = 1; i <= pagesToRender; i++) {
-                const pdfPage = await pdf.getPage(i);
-                const viewport = pdfPage.getViewport({ scale: 1.5 });
-                
-                const pageDiv = document.createElement('div');
-                pageDiv.className = 'page';
-                pageDiv.style.zIndex = state.totalPages - i;
-                
-                const pageCanvas = document.createElement('canvas');
-                const context = pageCanvas.getContext('2d');
-                pageCanvas.height = viewport.height;
-                pageCanvas.width = viewport.width;
-                
-                await pdfPage.render({ canvasContext: context, viewport: viewport }).promise;
-                
-                pageDiv.appendChild(pageCanvas);
-                
-                const num = document.createElement('div');
-                num.className = 'absolute bottom-2 left-0 right-0 text-center text-[8px] font-bold text-slate-400';
-                num.innerText = `PAGE ${i}`;
-                pageDiv.appendChild(num);
-                
-                book.appendChild(pageDiv);
-            }
-
-            loadingOverlay.style.display = 'none';
-            startApp();
-        }
-
-        function startApp() {
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(res => {
-                    if (res === 'granted') initSensors();
-                });
-            } else {
-                initSensors();
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                state.totalPages = pdfDoc.numPages;
+                renderPage(state.currentPage);
+                startApp();
+            } catch (err) {
+                console.error("PDF Error:", err);
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
             }
         }
 
-        function initSensors() {
-            state.active = true;
-            document.getElementById('permission-screen').style.display = 'none';
-            document.getElementById('book-container').style.display = 'block';
-            sheet.style.display = 'block';
+        async function renderPage(num) {
+            if (!pdfDoc) return;
+            const page = await pdfDoc.getPage(num);
             
-            window.addEventListener('devicemotion', (event) => {
-                const rawX = event.accelerationIncludingGravity ? event.accelerationIncludingGravity.x : 0;
-                const rawY = event.accelerationIncludingGravity ? event.accelerationIncludingGravity.y : 0;
-                state.targetX = -rawX * 45 * state.sensitivity;
-                state.targetY = rawY * 45 * state.sensitivity;
-            });
+            // Adjust scale to screen width
+            const viewport = page.getViewport({ scale: 1.5 });
+            const screenWidth = window.innerWidth * 0.95;
+            const scale = screenWidth / viewport.width;
+            const scaledViewport = page.getViewport({ scale: scale * 1.5 });
 
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            update();
+            pageCanvas.height = scaledViewport.height;
+            pageCanvas.width = scaledViewport.width;
+
+            await page.render({ 
+                canvasContext: pageCtx, 
+                viewport: scaledViewport 
+            }).promise;
+
+            updateHUD();
         }
 
-        function toggleSheet() {
-            sheet.classList.toggle('open');
+        function updateHUD() {
+            document.getElementById('page-indicator').innerText = `Page ${state.currentPage} of ${state.totalPages}`;
+            const pct = Math.round((state.currentPage / state.totalPages) * 100);
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-text').innerText = `${pct}%`;
+        }
+
+        function toggleHUD() {
+            state.hudVisible = !state.hudVisible;
+            document.body.classList.toggle('hud-active', state.hudVisible);
+        }
+
+        function toggleSettings() {
+            document.getElementById('settings-sheet').classList.toggle('open');
         }
 
         function nextPage() {
-            const pages = document.querySelectorAll('.page');
-            if (state.currentPage < pages.length - 1) {
-                pages[state.currentPage].classList.add('flipped');
+            if (state.currentPage < state.totalPages) {
                 state.currentPage++;
+                renderPage(state.currentPage);
             }
         }
 
         function prevPage() {
-            const pages = document.querySelectorAll('.page');
-            if (state.currentPage > 0) {
+            if (state.currentPage > 1) {
                 state.currentPage--;
-                pages[state.currentPage].classList.remove('flipped');
+                renderPage(state.currentPage);
             }
+        }
+
+        function startApp() {
+            const init = () => {
+                state.active = true;
+                document.getElementById('permission-screen').style.display = 'none';
+                document.getElementById('reader-container').style.display = 'block';
+                
+                window.addEventListener('devicemotion', (event) => {
+                    const rawX = event.accelerationIncludingGravity ? event.accelerationIncludingGravity.x : 0;
+                    const rawY = event.accelerationIncludingGravity ? event.accelerationIncludingGravity.y : 0;
+                    state.targetX = -rawX * 50 * state.sensitivity;
+                    state.targetY = rawY * 50 * state.sensitivity;
+                });
+
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                update();
+            };
+
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(res => res === 'granted' && init());
+            } else init();
         }
 
         function update() {
@@ -411,7 +454,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity})`;
             
-            const spacing = 70;
+            const spacing = 80;
             const w = canvas.width;
             const h = canvas.height;
 
@@ -428,7 +471,7 @@
                     }
                 }
             } else {
-                ctx.font = `${state.dotSize * 2}px serif`;
+                ctx.font = `${state.dotSize * 2.5}px serif`;
                 for (let x = -spacing; x < w + spacing; x += spacing) {
                     for (let y = -spacing; y < h + spacing; y += spacing) {
                         let dx = (x + state.currentX) % (w + spacing);
@@ -441,15 +484,11 @@
             }
         }
 
-        pdfUpload.addEventListener('change', handlePdfUpload);
-
+        // Controls
+        document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
         document.getElementById('sensitivity').oninput = (e) => {
             state.sensitivity = parseFloat(e.target.value);
             document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
-        };
-        document.getElementById('dot-size').oninput = (e) => {
-            state.dotSize = parseInt(e.target.value);
-            document.getElementById('density-val').innerText = state.dotSize > 12 ? 'Big' : 'Squishy';
         };
         document.getElementById('opacity').oninput = (e) => {
             state.opacity = parseFloat(e.target.value);
@@ -457,12 +496,13 @@
         };
         document.getElementById('mode-toggle').onclick = (e) => {
             state.mode = state.mode === 'dots' ? 'hearts' : 'dots';
-            e.target.innerText = state.mode === 'dots' ? 'HEART GRID' : 'DOT MODE';
+            e.target.innerText = state.mode === 'dots' ? 'Heart Grid' : 'Dot Mode';
         };
 
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            renderPage(state.currentPage);
         });
     </script>
 </body>
