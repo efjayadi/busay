@@ -29,7 +29,7 @@
             color: var(--text-main);
         }
 
-        /* MOTION DOTS - Top Layer */
+        /* MOTION DOTS - Highest Layer */
         #motion-canvas {
             position: fixed;
             top: 0;
@@ -37,46 +37,66 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 50; 
+            z-index: 100; 
         }
 
-        /* Kindle Reader Container */
+        /* 3D Page Flip Container */
         #reader-container {
             position: fixed;
             inset: 0;
             display: none;
             background: var(--kindle-bg);
             z-index: 10;
+            perspective: 2000px;
         }
 
-        #page-view {
+        #book-stage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw;
+            height: 80vh;
+            max-width: 500px;
+            transform-style: preserve-3d;
+        }
+
+        .flip-page {
+            position: absolute;
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            overflow-y: auto;
-            padding: 20px 0;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        #page-canvas {
-            max-width: 100%;
-            height: auto;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.05);
+            top: 0;
+            left: 0;
             background: white;
-            transition: width 0.2s ease-out;
+            transform-origin: left;
+            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
+            transform-style: preserve-3d;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-radius: 4px 12px 12px 4px;
+            backface-visibility: hidden;
+            z-index: 5;
         }
 
-        /* Minimalist HUD */
+        .flip-page.turning {
+            transform: rotateY(-180deg);
+        }
+
+        .flip-page canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: inherit;
+        }
+
+        /* Minimalist HUD - Focus Mode Support */
         .hud-element {
             position: fixed;
             left: 0;
             right: 0;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.92);
             backdrop-filter: blur(12px);
-            z-index: 60;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 150;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
         }
 
         #hud-top {
@@ -96,9 +116,27 @@
             border-top: 1px solid rgba(0,0,0,0.05);
         }
 
+        /* When active, slide in */
         .hud-active #hud-top,
         .hud-active #hud-bottom {
             transform: translateY(0);
+        }
+
+        /* Focus Hint Tooltip */
+        #focus-hint {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.4);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 10px;
+            z-index: 160;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
         }
 
         /* Settings Sheet */
@@ -110,7 +148,7 @@
             background: white;
             border-radius: 32px 32px 0 0;
             padding: 32px 24px;
-            z-index: 70;
+            z-index: 200;
             box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
             transform: translateY(100%);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
@@ -125,7 +163,7 @@
         .permission-screen {
             position: fixed;
             inset: 0;
-            z-index: 100;
+            z-index: 300;
             background: #ffffff;
             display: flex;
             flex-direction: column;
@@ -138,11 +176,6 @@
             width: 200px;
             min-height: 200px;
             margin-bottom: 10px;
-            background-color: #ffffff !important;
-        }
-
-        .tenor-gif-embed, .tenor-gif-embed iframe {
-            background-color: #ffffff !important;
         }
 
         .bubbly-btn {
@@ -169,13 +202,30 @@
             position: fixed;
             inset: 0;
             background: rgba(255,255,255,0.9);
-            z-index: 200;
+            z-index: 400;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
+        .tap-zone {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 30%;
+            z-index: 120;
+        }
+
+        #tap-center {
+            position: fixed;
+            top: 25%;
+            bottom: 25%;
+            left: 30%;
+            right: 30%;
+            z-index: 121;
+        }
+        
         input[type="range"] {
             width: 100%;
             height: 8px;
@@ -194,33 +244,19 @@
             cursor: pointer;
             border: 3px solid white;
         }
-
-        .tap-zone {
-            position: fixed;
-            top: 15%;
-            bottom: 15%;
-            width: 20%;
-            z-index: 45;
-        }
-
-        #tap-center {
-            position: fixed;
-            top: 20%;
-            bottom: 20%;
-            left: 25%;
-            right: 25%;
-            z-index: 46;
-        }
     </style>
 </head>
-<body class="hud-active">
+<body class=""> <!-- Starts with HUD hidden for focus -->
 
     <div id="loading-overlay">
         <div class="animate-bounce mb-4 text-5xl">ʕ•ᴥ•ʔ</div>
-        <p class="font-bold text-pink-400">Sharpening pages for Busay...</p>
+        <p class="font-bold text-pink-400">Entering Focus Mode...</p>
     </div>
 
+    <!-- Stabilizing Dots Overlay -->
     <canvas id="motion-canvas"></canvas>
+
+    <div id="focus-hint">Tap center to show menu</div>
 
     <!-- Start Screen -->
     <div id="permission-screen" class="permission-screen">
@@ -229,74 +265,63 @@
                 <a href="https://tenor.com/view/tkthao219-bubududu-peach-goma-gif-25251841">Tkthao219 Bubududu Sticker</a>
             </div>
         </div>
-        
         <h1 class="text-3xl font-bold mb-2 text-[#4a3728]" style="font-family: 'Gaegu', cursive;">BusayBook</h1>
-        <p class="text-slate-400 mb-8 max-w-xs font-medium text-sm">Crisp reading, smooth travels. 🐾</p>
-        
+        <p class="text-slate-400 mb-8 max-w-xs font-medium text-sm">Distraction-free Focus Reading 🐾</p>
         <label for="pdf-upload" class="bubbly-btn text-lg cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-            SELECT BOOK
+            START READING
         </label>
         <input type="file" id="pdf-upload" accept="application/pdf" class="hidden">
     </div>
 
-    <!-- Kindle Reader UI -->
+    <!-- Book Reader UI -->
     <div id="reader-container">
-        <!-- New Minimalist Header -->
         <div id="hud-top" class="hud-element">
-            <button onclick="location.reload()" class="p-2 opacity-60 hover:opacity-100">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <button onclick="location.reload()" class="p-2 opacity-60">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
             </button>
-            
-            <div class="flex-grow px-4 text-center">
-                <div id="book-title" class="font-bold text-xs truncate max-w-[150px] text-slate-400 uppercase tracking-tighter mb-0.5">Title</div>
+            <div class="text-center">
+                <div id="book-title" class="font-bold text-xs truncate max-w-[150px] text-slate-400 uppercase tracking-tighter">Title</div>
                 <div id="page-indicator" class="text-[10px] text-pink-400 font-bold uppercase tracking-widest">Page 0/0</div>
             </div>
-
-            <div class="flex items-center gap-1">
-                <button onclick="changeZoom(-0.1)" class="p-2 opacity-60 hover:opacity-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-                <span id="zoom-val" class="text-[10px] font-bold min-w-[30px] text-center">100%</span>
-                <button onclick="changeZoom(0.1)" class="p-2 opacity-60 hover:opacity-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-                <div class="w-2"></div>
-                <button onclick="toggleSettings()" class="p-2 text-pink-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-            </div>
+            <button onclick="toggleSettings()" class="p-2 text-pink-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
         </div>
 
         <div id="hud-bottom" class="hud-element">
             <div class="flex items-center gap-4">
-                <div class="flex-grow h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="flex-grow h-1 bg-slate-100 rounded-full overflow-hidden">
                     <div id="progress-bar" class="h-full bg-pink-300 transition-all duration-300" style="width: 0%"></div>
                 </div>
-                <span id="progress-text" class="text-[10px] font-bold text-slate-400 w-8">0%</span>
+                <span id="progress-text" class="text-[10px] font-bold text-slate-400">0%</span>
             </div>
         </div>
 
-        <!-- Kindle Navigation Zones -->
-        <div id="tap-left" class="tap-zone left-0" onclick="prevPage()"></div>
-        <div id="tap-right" class="tap-zone right-0" onclick="nextPage()"></div>
+        <!-- Navigation Interaction -->
+        <div class="tap-zone left-0" onclick="handlePrevPage()"></div>
+        <div class="tap-zone right-0" onclick="handleNextPage()"></div>
         <div id="tap-center" onclick="toggleHUD()"></div>
 
-        <div id="page-view">
-            <canvas id="page-canvas"></canvas>
+        <!-- 3D Book Stage -->
+        <div id="book-stage">
+            <div id="back-page" class="flip-page" style="z-index: 1;">
+                <canvas id="back-canvas"></canvas>
+            </div>
+            <div id="front-page" class="flip-page" style="z-index: 2;">
+                <canvas id="front-canvas"></canvas>
+            </div>
         </div>
     </div>
 
-    <!-- Busay Settings Sheet -->
+    <!-- Settings Sheet -->
     <div id="settings-sheet" class="settings-sheet">
         <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8" onclick="toggleSettings()"></div>
-        
         <div class="flex items-center justify-between mb-8">
             <h2 class="text-xl font-bold" style="font-family: 'Gaegu';">Stability Center</h2>
-            <button id="mode-toggle" class="bg-pink-50 text-pink-500 px-4 py-2 rounded-full text-[10px] font-bold border-2 border-pink-200 uppercase tracking-widest">Hearts Grid</button>
+            <button id="mode-toggle" class="bg-pink-50 text-pink-500 px-4 py-2 rounded-full text-[10px] font-bold border-2 border-pink-200">HEART GRID</button>
         </div>
-
-        <div class="space-y-10">
+        <div class="space-y-8">
             <div>
                 <div class="flex justify-between text-xs mb-4">
                     <span class="font-bold text-slate-400 uppercase tracking-widest">Responsiveness</span>
@@ -304,7 +329,6 @@
                 </div>
                 <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="1.5">
             </div>
-
             <div>
                 <div class="flex justify-between text-xs mb-4">
                     <span class="font-bold text-slate-400 uppercase tracking-widest">Visibility</span>
@@ -313,8 +337,7 @@
                 <input type="range" id="opacity" min="0.1" max="0.9" step="0.1" value="0.4">
             </div>
         </div>
-        
-        <button onclick="toggleSettings()" class="w-full mt-10 py-4 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-sm">Close Settings</button>
+        <button onclick="toggleSettings()" class="w-full mt-10 py-4 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-sm">Close</button>
     </div>
 
     <script>
@@ -322,10 +345,13 @@
 
         const canvas = document.getElementById('motion-canvas');
         const ctx = canvas.getContext('2d');
-        const pageCanvas = document.getElementById('page-canvas');
-        const pageCtx = pageCanvas.getContext('2d');
+        const frontCanvas = document.getElementById('front-canvas');
+        const backCanvas = document.getElementById('back-canvas');
+        const focusHint = document.getElementById('focus-hint');
         
         let pdfDoc = null;
+        let isTurning = false;
+        let hudTimeout = null;
         let state = {
             active: false,
             sensitivity: 1.5,
@@ -339,24 +365,21 @@
             lerpFactor: 0.08, 
             currentPage: 1,
             totalPages: 0,
-            hudVisible: true,
-            zoom: 1.0
+            hudVisible: false
         };
 
-        // Swipe & Gesture Logic
+        // Swipe Gestures
         let touchStartX = 0;
         window.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
         window.addEventListener('touchend', e => {
             const touchEndX = e.changedTouches[0].screenX;
-            const threshold = 60;
-            if (touchEndX < touchStartX - threshold) nextPage();
-            else if (touchEndX > touchStartX + threshold) prevPage();
+            if (touchEndX < touchStartX - 60) handleNextPage();
+            else if (touchEndX > touchStartX + 60) handlePrevPage();
         }, { passive: true });
 
         async function handlePdfUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('book-title').innerText = file.name.replace('.pdf', '');
             
@@ -364,54 +387,76 @@
                 const arrayBuffer = await file.arrayBuffer();
                 pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 state.totalPages = pdfDoc.numPages;
-                renderPage(state.currentPage);
+                await renderToCanvas(state.currentPage, frontCanvas);
                 startApp();
             } catch (err) {
-                console.error("PDF Error:", err);
+                console.error(err);
             } finally {
                 document.getElementById('loading-overlay').style.display = 'none';
             }
         }
 
-        async function renderPage(num) {
+        async function renderToCanvas(num, targetCanvas) {
             if (!pdfDoc) return;
             const page = await pdfDoc.getPage(num);
-            
-            // CRISP RENDERING: Calculate High-DPI Scale
             const dpr = window.devicePixelRatio || 1;
-            const baseViewport = page.getViewport({ scale: 1.0 });
-            
-            // Scale based on screen width + zoom
-            const targetWidth = window.innerWidth * state.zoom;
-            const scale = targetWidth / baseViewport.width;
-            const viewport = page.getViewport({ scale: scale });
+            const viewport = page.getViewport({ scale: (window.innerWidth * 0.9) / page.getViewport({scale:1}).width });
 
-            // Set canvas dimensions considering DPR
-            pageCanvas.width = viewport.width * dpr;
-            pageCanvas.height = viewport.height * dpr;
-            
-            // Adjust visual size with CSS
-            pageCanvas.style.width = `${viewport.width}px`;
-            pageCanvas.style.height = `${viewport.height}px`;
+            targetCanvas.width = viewport.width * dpr;
+            targetCanvas.height = viewport.height * dpr;
+            const targetCtx = targetCanvas.getContext('2d');
+            targetCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            // Reset transform and scale for DPR
-            pageCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-            await page.render({ 
-                canvasContext: pageCtx, 
-                viewport: viewport 
-            }).promise;
-
-            updateHUD();
+            await page.render({ canvasContext: targetCtx, viewport: viewport }).promise;
+            updateHUDContent();
         }
 
-        function changeZoom(delta) {
-            state.zoom = Math.max(0.5, Math.min(3.0, state.zoom + delta));
-            document.getElementById('zoom-val').innerText = Math.round(state.zoom * 100) + '%';
-            renderPage(state.currentPage);
+        function handleNextPage() {
+            if (!isTurning) {
+                autoHideHUD();
+                nextPage();
+            }
         }
 
-        function updateHUD() {
+        function handlePrevPage() {
+            if (!isTurning) {
+                autoHideHUD();
+                prevPage();
+            }
+        }
+
+        async function nextPage() {
+            if (isTurning || state.currentPage >= state.totalPages) return;
+            isTurning = true;
+            state.currentPage++;
+            await renderToCanvas(state.currentPage, backCanvas);
+            const front = document.getElementById('front-page');
+            front.classList.add('turning');
+            setTimeout(async () => {
+                await renderToCanvas(state.currentPage, frontCanvas);
+                front.classList.remove('turning');
+                isTurning = false;
+            }, 800);
+        }
+
+        async function prevPage() {
+            if (isTurning || state.currentPage <= 1) return;
+            isTurning = true;
+            state.currentPage--;
+            await renderToCanvas(state.currentPage, backCanvas);
+            const front = document.getElementById('front-page');
+            front.style.transition = 'none';
+            front.classList.add('turning');
+            void front.offsetWidth;
+            front.style.transition = '';
+            front.classList.remove('turning');
+            setTimeout(async () => {
+                await renderToCanvas(state.currentPage, frontCanvas);
+                isTurning = false;
+            }, 800);
+        }
+
+        function updateHUDContent() {
             document.getElementById('page-indicator').innerText = `Page ${state.currentPage} / ${state.totalPages}`;
             const pct = Math.round((state.currentPage / state.totalPages) * 100);
             document.getElementById('progress-bar').style.width = `${pct}%`;
@@ -421,24 +466,38 @@
         function toggleHUD() {
             state.hudVisible = !state.hudVisible;
             document.body.classList.toggle('hud-active', state.hudVisible);
+            
+            // Show hint when HUD hidden
+            if (!state.hudVisible) {
+                showFocusHint();
+            } else {
+                clearHUDTimeout();
+            }
+        }
+
+        function autoHideHUD() {
+            if (state.hudVisible) {
+                clearHUDTimeout();
+                hudTimeout = setTimeout(() => {
+                    if (state.hudVisible) toggleHUD();
+                }, 3000);
+            }
+        }
+
+        function clearHUDTimeout() {
+            if (hudTimeout) {
+                clearTimeout(hudTimeout);
+                hudTimeout = null;
+            }
+        }
+
+        function showFocusHint() {
+            focusHint.style.opacity = '1';
+            setTimeout(() => focusHint.style.opacity = '0', 2000);
         }
 
         function toggleSettings() {
             document.getElementById('settings-sheet').classList.toggle('open');
-        }
-
-        function nextPage() {
-            if (state.currentPage < state.totalPages) {
-                state.currentPage++;
-                renderPage(state.currentPage);
-            }
-        }
-
-        function prevPage() {
-            if (state.currentPage > 1) {
-                state.currentPage--;
-                renderPage(state.currentPage);
-            }
         }
 
         function startApp() {
@@ -446,84 +505,74 @@
                 state.active = true;
                 document.getElementById('permission-screen').style.display = 'none';
                 document.getElementById('reader-container').style.display = 'block';
-                
-                window.addEventListener('devicemotion', (event) => {
-                    const rawX = event.accelerationIncludingGravity ? event.accelerationIncludingGravity.x : 0;
-                    const rawY = event.accelerationIncludingGravity ? event.accelerationIncludingGravity.y : 0;
-                    state.targetX = -rawX * 45 * state.sensitivity;
-                    state.targetY = rawY * 45 * state.sensitivity;
+                window.addEventListener('devicemotion', e => {
+                    const ax = e.accelerationIncludingGravity ? e.accelerationIncludingGravity.x : 0;
+                    const ay = e.accelerationIncludingGravity ? e.accelerationIncludingGravity.y : 0;
+                    state.targetX = -ax * 45 * state.sensitivity;
+                    state.targetY = ay * 45 * state.sensitivity;
                 });
-
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                update();
+                
+                // Start with HUD hidden for focus
+                state.hudVisible = false;
+                document.body.classList.remove('hud-active');
+                showFocusHint();
+                
+                updateLoop();
             };
-
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(res => res === 'granted' && init());
             } else init();
         }
 
-        function update() {
+        function updateLoop() {
             state.currentX += (state.targetX - state.currentX) * state.lerpFactor;
             state.currentY += (state.targetY - state.currentY) * state.lerpFactor;
-            draw();
-            requestAnimationFrame(update);
+            drawMotion();
+            requestAnimationFrame(updateLoop);
         }
 
-        function draw() {
+        function drawMotion() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity})`;
-            
             const spacing = 80;
-            const w = canvas.width;
-            const h = canvas.height;
-
-            if (state.mode === 'dots') {
-                for (let x = -spacing; x < w + spacing; x += spacing) {
-                    for (let y = -spacing; y < h + spacing; y += spacing) {
-                        let dx = (x + state.currentX) % (w + spacing);
-                        let dy = (y + state.currentY) % (h + spacing);
-                        if (dx < 0) dx += (w + spacing);
-                        if (dy < 0) dy += (h + spacing);
+            for (let x = -spacing; x < canvas.width + spacing; x += spacing) {
+                for (let y = -spacing; y < canvas.height + spacing; y += spacing) {
+                    let dx = (x + state.currentX) % (canvas.width + spacing);
+                    let dy = (y + state.currentY) % (canvas.height + spacing);
+                    if (dx < 0) dx += (canvas.width + spacing);
+                    if (dy < 0) dy += (canvas.height + spacing);
+                    
+                    if (state.mode === 'dots') {
                         ctx.beginPath();
                         ctx.arc(dx, dy, state.dotSize / 2, 0, Math.PI * 2);
                         ctx.fill();
-                    }
-                }
-            } else {
-                ctx.font = `${state.dotSize * 2.5}px serif`;
-                for (let x = -spacing; x < w + spacing; x += spacing) {
-                    for (let y = -spacing; y < h + spacing; y += spacing) {
-                        let dx = (x + state.currentX) % (w + spacing);
-                        let dy = (y + state.currentY) % (h + spacing);
-                        if (dx < 0) dx += (w + spacing);
-                        if (dy < 0) dy += (h + spacing);
+                    } else {
+                        ctx.font = `${state.dotSize * 2.5}px serif`;
                         ctx.fillText('❤', dx - state.dotSize, dy + state.dotSize);
                     }
                 }
             }
         }
 
-        // Controls
         document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
-        document.getElementById('sensitivity').oninput = (e) => {
+        document.getElementById('sensitivity').oninput = e => {
             state.sensitivity = parseFloat(e.target.value);
             document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
         };
-        document.getElementById('opacity').oninput = (e) => {
+        document.getElementById('opacity').oninput = e => {
             state.opacity = parseFloat(e.target.value);
             document.getElementById('opacity-val').innerText = Math.round(state.opacity * 100) + '%';
         };
-        document.getElementById('mode-toggle').onclick = (e) => {
+        document.getElementById('mode-toggle').onclick = e => {
             state.mode = state.mode === 'dots' ? 'hearts' : 'dots';
-            e.target.innerText = state.mode === 'dots' ? 'Hearts Grid' : 'Dots Grid';
+            e.target.innerText = state.mode === 'dots' ? 'HEART GRID' : 'DOT MODE';
         };
-
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            renderPage(state.currentPage);
+            renderToCanvas(state.currentPage, frontCanvas);
         });
     </script>
 </body>
