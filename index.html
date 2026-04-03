@@ -246,7 +246,7 @@
         }
     </style>
 </head>
-<body class=""> <!-- Starts with HUD hidden for focus -->
+<body class="">
 
     <div id="loading-overlay">
         <div class="animate-bounce mb-4 text-5xl">ʕ•ᴥ•ʔ</div>
@@ -466,13 +466,8 @@
         function toggleHUD() {
             state.hudVisible = !state.hudVisible;
             document.body.classList.toggle('hud-active', state.hudVisible);
-            
-            // Show hint when HUD hidden
-            if (!state.hudVisible) {
-                showFocusHint();
-            } else {
-                clearHUDTimeout();
-            }
+            if (!state.hudVisible) showFocusHint();
+            else clearHUDTimeout();
         }
 
         function autoHideHUD() {
@@ -513,12 +508,9 @@
                 });
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                
-                // Start with HUD hidden for focus
                 state.hudVisible = false;
                 document.body.classList.remove('hud-active');
                 showFocusHint();
-                
                 updateLoop();
             };
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -535,14 +527,34 @@
 
         function drawMotion() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity})`;
-            const spacing = 80;
+            
+            const spacing = 70;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+
             for (let x = -spacing; x < canvas.width + spacing; x += spacing) {
                 for (let y = -spacing; y < canvas.height + spacing; y += spacing) {
                     let dx = (x + state.currentX) % (canvas.width + spacing);
                     let dy = (y + state.currentY) % (canvas.height + spacing);
                     if (dx < 0) dx += (canvas.width + spacing);
                     if (dy < 0) dy += (canvas.height + spacing);
+                    
+                    // Peripheral Focus Logic:
+                    // Calculate distance of the rendered point from the screen center
+                    const distFromCenter = Math.sqrt(Math.pow(dx - centerX, 2) + Math.pow(dy - centerY, 2));
+                    
+                    // Normalize distance (0 to 1)
+                    let distRatio = distFromCenter / maxDist;
+                    
+                    // Apply an exponent to sharpen the focus area (clearer center)
+                    // High exponent = larger clear area in center
+                    let alphaFactor = Math.pow(distRatio, 2.5);
+                    
+                    // Skip very low alpha to save performance
+                    if (alphaFactor < 0.05) continue;
+
+                    ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity * alphaFactor})`;
                     
                     if (state.mode === 'dots') {
                         ctx.beginPath();
