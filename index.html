@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BusayBook ʕ•ᴥ•ʔ</title>
     
+    <!-- PWA Meta Tags (Wajib untuk Real App Install) -->
+    <meta name="theme-color" content="#ffb7b2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
     <!-- PWA Manifest Link -->
     <link rel="manifest" href="manifest.json">
     
@@ -12,6 +18,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+    
+    <!-- === TAMBAHAN UNTUK REACT === -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     
     <!-- Firebase SDKs -->
     <script type="module">
@@ -36,6 +47,15 @@
             font-family: 'Quicksand', sans-serif;
             touch-action: none;
             color: var(--text-main);
+        }
+
+        /* === ANIMASI CUSTOM UNTUK PWA PROMPT === */
+        @keyframes slideDownBounce {
+            0% { transform: translateY(-150%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .animate-ios-prompt {
+            animation: slideDownBounce 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
 
         #motion-canvas {
@@ -146,6 +166,9 @@
     </style>
 </head>
 <body>
+
+    <!-- === ROOT UNTUK REACT COMPONENT === -->
+    <div id="pwa-prompt-root"></div>
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-white/95 z-[500] hidden flex flex-col items-center justify-center">
@@ -263,6 +286,121 @@
         <button onclick="toggleSettings()" class="w-full mt-8 py-3.5 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs">Save & Close</button>
     </div>
 
+    <!-- === KODE REACT UNTUK CUSTOM PWA PROMPT === -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const PWAInstallPrompt = () => {
+            const [show, setShow] = useState(false);
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
+            const [isIOS, setIsIOS] = useState(false);
+            const [isStandalone, setIsStandalone] = useState(false);
+
+            useEffect(() => {
+                // 1. Cek mode standalone (Layar penuh/sudah terinstall)
+                const checkStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                setIsStandalone(checkStandalone);
+
+                // Jika sudah PWA, jangan render apa pun
+                if (checkStandalone) return;
+
+                // 2. Deteksi perangkat iOS
+                const userAgent = window.navigator.userAgent.toLowerCase();
+                const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+                setIsIOS(isIosDevice);
+
+                // 3. Tangkap event beforeinstallprompt (Android / Desktop)
+                const handleBeforeInstallPrompt = (e) => {
+                    e.preventDefault();
+                    setDeferredPrompt(e);
+                    setShow(true); 
+                };
+
+                window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+                // 4. Jika iOS, tampilkan notifikasi manual setelah delay 2.5 detik
+                if (isIosDevice) {
+                    const timer = setTimeout(() => {
+                        setShow(true);
+                    }, 2500);
+                    return () => clearTimeout(timer);
+                }
+
+                return () => {
+                    window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+                };
+            }, []);
+
+            const handleInstallClick = async () => {
+                if (isIOS) {
+                    // Alert instruksi untuk iOS
+                    alert("To install BusayBook: \n\n1. Tap the 'Share' icon at the bottom of your screen.\n2. Scroll down and select 'Add to Home Screen'.");
+                } else if (deferredPrompt) {
+                    // Jalankan prompt bawaan Android
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    
+                    if (outcome === 'accepted') {
+                        console.log('User accepted the PWA prompt');
+                        setShow(false); // Sembunyikan setelah sukses
+                    }
+                    setDeferredPrompt(null);
+                }
+            };
+
+            const handleClose = () => {
+                setShow(false);
+            };
+
+            // Jika sudah standalone atau state show false, tidak merender UI
+            if (isStandalone || !show) return null;
+
+            return (
+                <div className="fixed top-4 left-0 right-0 z-[9999] px-4 flex justify-center pointer-events-none">
+                    <div className="animate-ios-prompt bg-white/85 backdrop-blur-xl shadow-2xl rounded-2xl p-3 flex items-center w-full max-w-md pointer-events-auto border border-white/50">
+                        
+                        {/* Ikon Aplikasi Kotak Membulat */}
+                        <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center shrink-0 shadow-inner border border-pink-200">
+                            <span className="text-2xl">ʕ•ᴥ•ʔ</span>
+                        </div>
+                        
+                        {/* Teks & Subtitle */}
+                        <div className="ml-3 flex-grow">
+                            <h4 className="text-[15px] font-bold text-gray-800 leading-tight">Download BusayBook</h4>
+                            <p className="text-[12px] text-gray-500 font-medium mt-0.5">Ultra-Smooth Reading Mode</p>
+                        </div>
+                        
+                        {/* Tombol Get/Install */}
+                        <button
+                            onClick={handleInstallClick}
+                            className="bg-[#007AFF] hover:bg-blue-600 text-white text-[13px] font-bold py-1.5 px-5 rounded-full ml-2 transition-transform active:scale-95 shadow-sm"
+                        >
+                            {isIOS ? 'Get' : 'Install'}
+                        </button>
+                        
+                        {/* Tombol X (Close) */}
+                        <button
+                            onClick={handleClose}
+                            className="ml-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                            aria-label="Close"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+
+                    </div>
+                </div>
+            );
+        };
+
+        // Render ke root div
+        const root = ReactDOM.createRoot(document.getElementById('pwa-prompt-root'));
+        root.render(<PWAInstallPrompt />);
+    </script>
+
+
+    <!-- === VANILLA SCRIPT APP LAMA === -->
     <script type="module">
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
@@ -283,6 +421,7 @@
             updateBtn.classList.remove('hidden');
         }
 
+        // Event listener bawaan ini tetap ada jika user ingin klik tombol install di halaman utama
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); deferredPrompt = e;
             installBtn.classList.remove('hidden'); updateBtn.classList.add('hidden');
