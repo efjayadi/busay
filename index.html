@@ -6,10 +6,18 @@
     <title>BusayBook ʕ•ᴥ•ʔ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
-    <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <!-- Tenor Embed Script -->
     <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.fb = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc };
+    </script>
+
     <style>
         :root {
             --primary: #ffb7b2;
@@ -20,253 +28,123 @@
         }
 
         body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
+            margin: 0; padding: 0; overflow: hidden;
             background-color: var(--bg-app);
             font-family: 'Quicksand', sans-serif;
             touch-action: none;
             color: var(--text-main);
         }
 
-        /* MOTION DOTS - Highest Layer */
         #motion-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 100; 
+            position: fixed; inset: 0; pointer-events: none; z-index: 100;
         }
 
-        /* 3D Page Flip Container */
         #reader-container {
-            position: fixed;
-            inset: 0;
-            display: none;
-            background: var(--kindle-bg);
-            z-index: 10;
-            perspective: 2000px;
+            position: fixed; inset: 0; display: none;
+            background: var(--kindle-bg); z-index: 10;
         }
 
+        /* High Performance Static Stage */
         #book-stage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 90vw;
-            height: 80vh;
-            max-width: 500px;
-            transform-style: preserve-3d;
+            width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .flip-page {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
+        #page-canvas {
+            max-width: 100%; max-height: 100%;
+            box-shadow: 0 0 40px rgba(0,0,0,0.05);
             background: white;
-            transform-origin: left;
-            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
-            transform-style: preserve-3d;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border-radius: 4px 12px 12px 4px;
-            backface-visibility: hidden;
-            z-index: 5;
+            transition: opacity 0.15s ease-out; /* Lightest possible transition */
         }
 
-        .flip-page.turning {
-            transform: rotateY(-180deg);
-        }
-
-        .flip-page canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: inherit;
-        }
-
-        /* Minimalist HUD - Focus Mode Support */
         .hud-element {
-            position: fixed;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(12px);
-            z-index: 150;
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            position: fixed; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px); z-index: 150;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         #hud-top {
-            top: 0;
-            transform: translateY(-100%);
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            top: 0; transform: translateY(-100%);
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid rgba(0,0,0,0.05);
         }
 
         #hud-bottom {
-            bottom: 0;
-            transform: translateY(100%);
-            padding: 16px 24px;
-            border-top: 1px solid rgba(0,0,0,0.05);
+            bottom: 0; transform: translateY(100%);
+            padding: 16px 24px; border-top: 1px solid rgba(0,0,0,0.05);
         }
 
-        /* When active, slide in */
-        .hud-active #hud-top,
-        .hud-active #hud-bottom {
-            transform: translateY(0);
-        }
+        .hud-active #hud-top, .hud-active #hud-bottom { transform: translateY(0); }
 
-        /* Focus Hint Tooltip */
-        #focus-hint {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.4);
-            color: white;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 10px;
-            z-index: 160;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.5s;
-        }
-
-        /* Settings Sheet */
         .settings-sheet {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            border-radius: 32px 32px 0 0;
-            padding: 32px 24px;
-            z-index: 200;
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; border-radius: 32px 32px 0 0;
+            padding: 24px; z-index: 200;
             box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
             transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+            transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1);
             border-top: 6px solid var(--primary);
         }
 
-        .settings-sheet.open {
-            transform: translateY(0);
-        }
+        .settings-sheet.open { transform: translateY(0); }
 
-        /* Splash Screen */
         .permission-screen {
-            position: fixed;
-            inset: 0;
-            z-index: 300;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .gif-wrapper {
-            width: 200px;
-            min-height: 200px;
-            margin-bottom: 10px;
+            position: fixed; inset: 0; z-index: 300;
+            background: #ffffff; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
         }
 
         .bubbly-btn {
-            background: var(--primary);
-            color: white;
-            font-weight: bold;
-            padding: 14px 36px;
-            border-radius: 30px;
-            box-shadow: 0 6px 0 #ff938a;
-            transition: all 0.1s;
-            border: none;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
+            background: var(--primary); color: white; font-weight: bold;
+            padding: 14px 36px; border-radius: 30px;
+            box-shadow: 0 6px 0 #ff938a; transition: all 0.1s;
+            border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 10px;
         }
 
-        .bubbly-btn:active {
-            transform: translateY(3px);
-            box-shadow: 0 3px 0 #ff938a;
-        }
+        .bubbly-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #ff938a; }
 
-        #loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(255,255,255,0.9);
-            z-index: 400;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
+        .tap-zone { position: fixed; top: 0; bottom: 0; width: 30%; z-index: 120; }
+        #tap-center { position: fixed; top: 25%; bottom: 25%; left: 30%; right: 30%; z-index: 121; }
 
-        .tap-zone {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            width: 30%;
-            z-index: 120;
-        }
-
-        #tap-center {
-            position: fixed;
-            top: 25%;
-            bottom: 25%;
-            left: 30%;
-            right: 30%;
-            z-index: 121;
-        }
-        
         input[type="range"] {
-            width: 100%;
-            height: 8px;
-            background: #fdf2f2;
-            border-radius: 10px;
-            appearance: none;
-            outline: none;
+            width: 100%; height: 8px; background: #fdf2f2; border-radius: 10px;
+            appearance: none; outline: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
-            appearance: none;
-            width: 22px;
-            height: 22px;
-            background: var(--accent);
-            border-radius: 50%;
-            cursor: pointer;
-            border: 3px solid white;
+            appearance: none; width: 22px; height: 22px;
+            background: var(--accent); border-radius: 50%; cursor: pointer; border: 3px solid white;
+        }
+
+        #focus-hint {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.5); color: white; padding: 6px 16px;
+            border-radius: 20px; font-size: 10px; z-index: 160;
+            pointer-events: none; opacity: 0; transition: opacity 0.5s;
         }
     </style>
 </head>
-<body class="">
+<body>
 
-    <div id="loading-overlay">
-        <div class="animate-bounce mb-4 text-5xl">ʕ•ᴥ•ʔ</div>
-        <p class="font-bold text-pink-400">Entering Focus Mode...</p>
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[500] hidden flex flex-col items-center justify-center">
+        <div class="animate-bounce text-5xl">ʕ•ᴥ•ʔ</div>
+        <p class="font-bold text-pink-400 mt-4">Bubu is fast at work...</p>
     </div>
 
-    <!-- Stabilizing Dots Overlay -->
     <canvas id="motion-canvas"></canvas>
+    <div id="focus-hint">Tap center for menu</div>
 
-    <div id="focus-hint">Tap center to show menu</div>
-
-    <!-- Start Screen -->
     <div id="permission-screen" class="permission-screen">
-        <div class="gif-wrapper">
+        <div class="w-[200px] mb-4">
             <div class="tenor-gif-embed" data-postid="25251841" data-share-method="host" data-aspect-ratio="1" data-width="100%">
-                <a href="https://tenor.com/view/tkthao219-bubududu-peach-goma-gif-25251841">Tkthao219 Bubududu Sticker</a>
+                <a href="https://tenor.com/view/tkthao219-bubududu-peach-goma-gif-25251841">Bubu Sticker</a>
             </div>
         </div>
         <h1 class="text-3xl font-bold mb-2 text-[#4a3728]" style="font-family: 'Gaegu', cursive;">BusayBook</h1>
-        <p class="text-slate-400 mb-8 max-w-xs font-medium text-sm">Distraction-free Focus Reading 🐾</p>
+        <p class="text-slate-400 mb-8 max-w-xs font-medium text-sm">Ultra-responsive Reading Mode 🐾</p>
         <label for="pdf-upload" class="bubbly-btn text-lg cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
             START READING
@@ -274,19 +152,14 @@
         <input type="file" id="pdf-upload" accept="application/pdf" class="hidden">
     </div>
 
-    <!-- Book Reader UI -->
     <div id="reader-container">
         <div id="hud-top" class="hud-element">
-            <button onclick="location.reload()" class="p-2 opacity-60">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
-            </button>
+            <button onclick="location.reload()" class="p-2 opacity-60"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg></button>
             <div class="text-center">
                 <div id="book-title" class="font-bold text-xs truncate max-w-[150px] text-slate-400 uppercase tracking-tighter">Title</div>
                 <div id="page-indicator" class="text-[10px] text-pink-400 font-bold uppercase tracking-widest">Page 0/0</div>
             </div>
-            <button onclick="toggleSettings()" class="p-2 text-pink-400">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+            <button onclick="toggleSettings()" class="p-2 text-pink-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg></button>
         </div>
 
         <div id="hud-bottom" class="hud-element">
@@ -298,204 +171,209 @@
             </div>
         </div>
 
-        <!-- Navigation Interaction -->
-        <div class="tap-zone left-0" onclick="handlePrevPage()"></div>
-        <div class="tap-zone right-0" onclick="handleNextPage()"></div>
+        <div class="tap-zone left-0" onclick="prevPage()"></div>
+        <div class="tap-zone right-0" onclick="nextPage()"></div>
         <div id="tap-center" onclick="toggleHUD()"></div>
 
-        <!-- 3D Book Stage -->
         <div id="book-stage">
-            <div id="back-page" class="flip-page" style="z-index: 1;">
-                <canvas id="back-canvas"></canvas>
-            </div>
-            <div id="front-page" class="flip-page" style="z-index: 2;">
-                <canvas id="front-canvas"></canvas>
-            </div>
+            <canvas id="page-canvas"></canvas>
         </div>
     </div>
 
-    <!-- Settings Sheet -->
     <div id="settings-sheet" class="settings-sheet">
         <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8" onclick="toggleSettings()"></div>
         <div class="flex items-center justify-between mb-8">
-            <h2 class="text-xl font-bold" style="font-family: 'Gaegu';">Stability Center</h2>
-            <button id="mode-toggle" class="bg-pink-50 text-pink-500 px-4 py-2 rounded-full text-[10px] font-bold border-2 border-pink-200">HEART GRID</button>
+            <h2 class="text-xl font-bold" style="font-family: 'Gaegu';">Bubu's Settings</h2>
+            <div class="flex gap-2">
+                <button id="style-toggle" class="bg-pink-50 text-pink-500 px-3 py-1.5 rounded-full text-[9px] font-bold border border-pink-200">HEARTS</button>
+                <button id="pattern-toggle" class="bg-blue-50 text-blue-500 px-3 py-1.5 rounded-full text-[9px] font-bold border border-blue-200">PERIPHERAL</button>
+            </div>
         </div>
-        <div class="space-y-8">
+        <div class="space-y-6">
             <div>
-                <div class="flex justify-between text-xs mb-4">
-                    <span class="font-bold text-slate-400 uppercase tracking-widest">Responsiveness</span>
+                <div class="flex justify-between text-xs mb-3">
+                    <span class="font-bold text-slate-400">SPEED SENSITIVITY</span>
                     <span id="sense-val" class="text-pink-400 font-bold">1.5x</span>
                 </div>
                 <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="1.5">
             </div>
             <div>
-                <div class="flex justify-between text-xs mb-4">
-                    <span class="font-bold text-slate-400 uppercase tracking-widest">Visibility</span>
+                <div class="flex justify-between text-xs mb-3">
+                    <span class="font-bold text-slate-400">VISIBILITY</span>
                     <span id="opacity-val" class="text-pink-400 font-bold">40%</span>
                 </div>
                 <input type="range" id="opacity" min="0.1" max="0.9" step="0.1" value="0.4">
             </div>
         </div>
-        <button onclick="toggleSettings()" class="w-full mt-10 py-4 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-sm">Close</button>
+        <button onclick="toggleSettings()" class="w-full mt-8 py-3.5 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs">Save & Close</button>
     </div>
 
-    <script>
+    <script type="module">
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         const canvas = document.getElementById('motion-canvas');
         const ctx = canvas.getContext('2d');
-        const frontCanvas = document.getElementById('front-canvas');
-        const backCanvas = document.getElementById('back-canvas');
+        const pageCanvas = document.getElementById('page-canvas');
+        const pageCtx = pageCanvas.getContext('2d');
         const focusHint = document.getElementById('focus-hint');
-        
+        const loading = document.getElementById('loading-overlay');
+
+        // Global State
         let pdfDoc = null;
-        let isTurning = false;
         let hudTimeout = null;
-        let state = {
+        let currentUser = null;
+        let db = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'busaybook-v2';
+
+        const state = {
             active: false,
             sensitivity: 1.5,
-            dotSize: 8,
             opacity: 0.4,
-            mode: 'dots',
-            targetX: 0,
-            targetY: 0,
-            currentX: 0,
-            currentY: 0,
-            lerpFactor: 0.08, 
+            gridStyle: 'dots',
+            dotsPattern: 'peripheral', // 'full' or 'peripheral'
             currentPage: 1,
             totalPages: 0,
-            hudVisible: false
+            hudVisible: false,
+            dotSize: 8,
+            targetX: 0, targetY: 0,
+            currentX: 0, currentY: 0,
+            lerpFactor: 0.08
         };
 
-        // Swipe Gestures
-        let touchStartX = 0;
-        window.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
-        window.addEventListener('touchend', e => {
-            const touchEndX = e.changedTouches[0].screenX;
-            if (touchEndX < touchStartX - 60) handleNextPage();
-            else if (touchEndX > touchStartX + 60) handlePrevPage();
-        }, { passive: true });
+        // --- STORAGE ---
+        async function initStorage() {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = window.fb.initializeApp(firebaseConfig);
+            const auth = window.fb.getAuth(app);
+            db = window.fb.getFirestore(app);
 
+            const initAuth = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await window.fb.signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await window.fb.signInAnonymously(auth);
+                }
+            };
+            await initAuth();
+            window.fb.onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    loadSettings();
+                }
+            });
+        }
+
+        async function loadSettings() {
+            if (!currentUser) return;
+            const docRef = window.fb.doc(db, 'artifacts', appId, 'users', currentUser.uid, 'config', 'settings');
+            const snap = await window.fb.getDoc(docRef);
+            if (snap.exists()) {
+                const data = snap.data();
+                state.sensitivity = data.sensitivity ?? 1.5;
+                state.opacity = data.opacity ?? 0.4;
+                state.gridStyle = data.gridStyle ?? 'dots';
+                state.dotsPattern = data.dotsPattern ?? 'peripheral';
+                updateUIFromState();
+            }
+        }
+
+        async function saveSettings() {
+            if (!currentUser) return;
+            const docRef = window.fb.doc(db, 'artifacts', appId, 'users', currentUser.uid, 'config', 'settings');
+            await window.fb.setDoc(docRef, {
+                sensitivity: state.sensitivity,
+                opacity: state.opacity,
+                gridStyle: state.gridStyle,
+                dotsPattern: state.dotsPattern
+            });
+        }
+
+        function updateUIFromState() {
+            document.getElementById('sensitivity').value = state.sensitivity;
+            document.getElementById('opacity').value = state.opacity;
+            document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
+            document.getElementById('opacity-val').innerText = Math.round(state.opacity * 100) + '%';
+            document.getElementById('style-toggle').innerText = state.gridStyle === 'dots' ? 'DOTS' : 'HEARTS';
+            document.getElementById('pattern-toggle').innerText = state.dotsPattern.toUpperCase();
+        }
+
+        // --- PDF RENDERING ---
         async function handlePdfUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-            document.getElementById('loading-overlay').style.display = 'flex';
+            loading.style.display = 'flex';
             document.getElementById('book-title').innerText = file.name.replace('.pdf', '');
             
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 state.totalPages = pdfDoc.numPages;
-                await renderToCanvas(state.currentPage, frontCanvas);
-                startApp();
+                await renderPage(state.currentPage);
+                startReader();
             } catch (err) {
                 console.error(err);
             } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
+                loading.style.display = 'none';
             }
         }
 
-        async function renderToCanvas(num, targetCanvas) {
+        async function renderPage(num) {
             if (!pdfDoc) return;
             const page = await pdfDoc.getPage(num);
             const dpr = window.devicePixelRatio || 1;
-            const viewport = page.getViewport({ scale: (window.innerWidth * 0.9) / page.getViewport({scale:1}).width });
+            
+            // Fast scale calculation
+            const baseViewport = page.getViewport({ scale: 1 });
+            const targetWidth = window.innerWidth * 0.95;
+            const scale = targetWidth / baseViewport.width;
+            const viewport = page.getViewport({ scale: scale });
 
-            targetCanvas.width = viewport.width * dpr;
-            targetCanvas.height = viewport.height * dpr;
-            const targetCtx = targetCanvas.getContext('2d');
-            targetCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            pageCanvas.width = viewport.width * dpr;
+            pageCanvas.height = viewport.height * dpr;
+            pageCanvas.style.width = viewport.width + 'px';
+            pageCanvas.style.height = viewport.height + 'px';
 
-            await page.render({ canvasContext: targetCtx, viewport: viewport }).promise;
+            pageCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            pageCanvas.style.opacity = '0.5'; // Visual feedback for rendering
+
+            await page.render({ canvasContext: pageCtx, viewport: viewport }).promise;
+            pageCanvas.style.opacity = '1';
             updateHUDContent();
         }
 
-        function handleNextPage() {
-            if (!isTurning) {
-                autoHideHUD();
-                nextPage();
-            }
+        function nextPage() { if (state.currentPage < state.totalPages) { state.currentPage++; renderPage(state.currentPage); autoHideHUD(); } }
+        function prevPage() { if (state.currentPage > 1) { state.currentPage--; renderPage(state.currentPage); autoHideHUD(); } }
+
+        // --- INTERACTION ---
+        function toggleHUD() {
+            state.hudVisible = !state.hudVisible;
+            document.body.classList.toggle('hud-active', state.hudVisible);
+            if (!state.hudVisible) showFocusHint(); else clearHUDTimeout();
         }
 
-        function handlePrevPage() {
-            if (!isTurning) {
-                autoHideHUD();
-                prevPage();
-            }
+        function autoHideHUD() {
+            if (!state.hudVisible) return;
+            clearHUDTimeout();
+            hudTimeout = setTimeout(() => { if (state.hudVisible) toggleHUD(); }, 3000);
         }
 
-        async function nextPage() {
-            if (isTurning || state.currentPage >= state.totalPages) return;
-            isTurning = true;
-            state.currentPage++;
-            await renderToCanvas(state.currentPage, backCanvas);
-            const front = document.getElementById('front-page');
-            front.classList.add('turning');
-            setTimeout(async () => {
-                await renderToCanvas(state.currentPage, frontCanvas);
-                front.classList.remove('turning');
-                isTurning = false;
-            }, 800);
-        }
-
-        async function prevPage() {
-            if (isTurning || state.currentPage <= 1) return;
-            isTurning = true;
-            state.currentPage--;
-            await renderToCanvas(state.currentPage, backCanvas);
-            const front = document.getElementById('front-page');
-            front.style.transition = 'none';
-            front.classList.add('turning');
-            void front.offsetWidth;
-            front.style.transition = '';
-            front.classList.remove('turning');
-            setTimeout(async () => {
-                await renderToCanvas(state.currentPage, frontCanvas);
-                isTurning = false;
-            }, 800);
+        function clearHUDTimeout() { if (hudTimeout) { clearTimeout(hudTimeout); hudTimeout = null; } }
+        function showFocusHint() { focusHint.style.opacity = '1'; setTimeout(() => focusHint.style.opacity = '0', 2000); }
+        function toggleSettings() { 
+            const sheet = document.getElementById('settings-sheet');
+            sheet.classList.toggle('open');
+            if (!sheet.classList.contains('open')) saveSettings();
         }
 
         function updateHUDContent() {
             document.getElementById('page-indicator').innerText = `Page ${state.currentPage} / ${state.totalPages}`;
             const pct = Math.round((state.currentPage / state.totalPages) * 100);
-            document.getElementById('progress-bar').style.width = `${pct}%`;
-            document.getElementById('progress-text').innerText = `${pct}%`;
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('progress-text').innerText = pct + '%';
         }
 
-        function toggleHUD() {
-            state.hudVisible = !state.hudVisible;
-            document.body.classList.toggle('hud-active', state.hudVisible);
-            if (!state.hudVisible) showFocusHint();
-            else clearHUDTimeout();
-        }
-
-        function autoHideHUD() {
-            if (state.hudVisible) {
-                clearHUDTimeout();
-                hudTimeout = setTimeout(() => {
-                    if (state.hudVisible) toggleHUD();
-                }, 3000);
-            }
-        }
-
-        function clearHUDTimeout() {
-            if (hudTimeout) {
-                clearTimeout(hudTimeout);
-                hudTimeout = null;
-            }
-        }
-
-        function showFocusHint() {
-            focusHint.style.opacity = '1';
-            setTimeout(() => focusHint.style.opacity = '0', 2000);
-        }
-
-        function toggleSettings() {
-            document.getElementById('settings-sheet').classList.toggle('open');
-        }
-
-        function startApp() {
+        // --- MOTION ENGINE ---
+        function startReader() {
             const init = () => {
                 state.active = true;
                 document.getElementById('permission-screen').style.display = 'none';
@@ -508,11 +386,10 @@
                 });
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                state.hudVisible = false;
-                document.body.classList.remove('hud-active');
                 showFocusHint();
-                updateLoop();
+                requestAnimationFrame(updateLoop);
             };
+            
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(res => res === 'granted' && init());
             } else init();
@@ -527,8 +404,7 @@
 
         function drawMotion() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const spacing = 70;
+            const spacing = 75;
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
@@ -540,26 +416,16 @@
                     if (dx < 0) dx += (canvas.width + spacing);
                     if (dy < 0) dy += (canvas.height + spacing);
                     
-                    // Peripheral Focus Logic:
-                    // Calculate distance of the rendered point from the screen center
-                    const distFromCenter = Math.sqrt(Math.pow(dx - centerX, 2) + Math.pow(dy - centerY, 2));
-                    
-                    // Normalize distance (0 to 1)
-                    let distRatio = distFromCenter / maxDist;
-                    
-                    // Apply an exponent to sharpen the focus area (clearer center)
-                    // High exponent = larger clear area in center
-                    let alphaFactor = Math.pow(distRatio, 2.5);
-                    
-                    // Skip very low alpha to save performance
-                    if (alphaFactor < 0.05) continue;
+                    let alpha = 1.0;
+                    if (state.dotsPattern === 'peripheral') {
+                        const dist = Math.sqrt(Math.pow(dx - centerX, 2) + Math.pow(dy - centerY, 2));
+                        alpha = Math.pow(dist / maxDist, 2.5);
+                    }
+                    if (alpha < 0.02) continue;
 
-                    ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity * alphaFactor})`;
-                    
-                    if (state.mode === 'dots') {
-                        ctx.beginPath();
-                        ctx.arc(dx, dy, state.dotSize / 2, 0, Math.PI * 2);
-                        ctx.fill();
+                    ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity * alpha})`;
+                    if (state.gridStyle === 'dots') {
+                        ctx.beginPath(); ctx.arc(dx, dy, state.dotSize / 2, 0, Math.PI * 2); ctx.fill();
                     } else {
                         ctx.font = `${state.dotSize * 2.5}px serif`;
                         ctx.fillText('❤', dx - state.dotSize, dy + state.dotSize);
@@ -568,24 +434,48 @@
             }
         }
 
-        document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
-        document.getElementById('sensitivity').oninput = e => {
-            state.sensitivity = parseFloat(e.target.value);
-            document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
-        };
-        document.getElementById('opacity').oninput = e => {
-            state.opacity = parseFloat(e.target.value);
-            document.getElementById('opacity-val').innerText = Math.round(state.opacity * 100) + '%';
-        };
-        document.getElementById('mode-toggle').onclick = e => {
-            state.mode = state.mode === 'dots' ? 'hearts' : 'dots';
-            e.target.innerText = state.mode === 'dots' ? 'HEART GRID' : 'DOT MODE';
-        };
+        // --- INIT ---
+        window.addEventListener('load', () => {
+            initStorage();
+            
+            document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
+            
+            document.getElementById('sensitivity').oninput = e => {
+                state.sensitivity = parseFloat(e.target.value);
+                document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
+            };
+            document.getElementById('opacity').oninput = e => {
+                state.opacity = parseFloat(e.target.value);
+                document.getElementById('opacity-val').innerText = Math.round(state.opacity * 100) + '%';
+            };
+            document.getElementById('style-toggle').onclick = e => {
+                state.gridStyle = state.gridStyle === 'dots' ? 'hearts' : 'dots';
+                e.target.innerText = state.gridStyle.toUpperCase();
+            };
+            document.getElementById('pattern-toggle').onclick = e => {
+                state.dotsPattern = state.dotsPattern === 'full' ? 'peripheral' : 'full';
+                e.target.innerText = state.dotsPattern.toUpperCase();
+            };
+
+            // Swipe logic
+            let touchStartX = 0;
+            window.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
+            window.addEventListener('touchend', e => {
+                const diff = e.changedTouches[0].screenX - touchStartX;
+                if (diff < -60) nextPage(); else if (diff > 60) prevPage();
+            }, { passive: true });
+        });
+
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            renderToCanvas(state.currentPage, frontCanvas);
+            if (pdfDoc) renderPage(state.currentPage);
         });
+
+        window.prevPage = prevPage;
+        window.nextPage = nextPage;
+        window.toggleHUD = toggleHUD;
+        window.toggleSettings = toggleSettings;
     </script>
 </body>
 </html>
