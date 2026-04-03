@@ -9,12 +9,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
     
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         window.fb = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc };
     </script>
 
@@ -44,24 +42,33 @@
             background: var(--kindle-bg); z-index: 10;
         }
 
-        /* High Performance Static Stage */
         #book-stage {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100vw; height: 100vh;
+            position: absolute; inset: 0;
             display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
         }
 
-        #page-canvas {
-            max-width: 100%; max-height: 100%;
-            box-shadow: 0 0 40px rgba(0,0,0,0.05);
+        /* Stacked Page System */
+        .page-layer {
+            position: absolute;
+            max-width: 95%;
+            max-height: 95%;
+            box-shadow: 0 0 40px rgba(0,0,0,0.06);
             background: white;
-            transition: opacity 0.15s ease-out; /* Lightest possible transition */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-in-out;
+            will-change: opacity;
+        }
+
+        .page-layer.active {
+            opacity: 1;
+            visibility: visible;
         }
 
         .hud-element {
             position: fixed; left: 0; right: 0;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(12px); z-index: 150;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -109,29 +116,25 @@
         .tap-zone { position: fixed; top: 0; bottom: 0; width: 30%; z-index: 120; }
         #tap-center { position: fixed; top: 25%; bottom: 25%; left: 30%; right: 30%; z-index: 121; }
 
-        input[type="range"] {
-            width: 100%; height: 8px; background: #fdf2f2; border-radius: 10px;
-            appearance: none; outline: none;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            appearance: none; width: 22px; height: 22px;
-            background: var(--accent); border-radius: 50%; cursor: pointer; border: 3px solid white;
-        }
-
         #focus-hint {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.5); color: white; padding: 6px 16px;
             border-radius: 20px; font-size: 10px; z-index: 160;
             pointer-events: none; opacity: 0; transition: opacity 0.5s;
         }
+
+        #preloading-bar {
+            position: fixed; top: 0; left: 0; height: 3px; background: var(--accent);
+            width: 0%; z-index: 600; transition: width 0.3s;
+        }
     </style>
 </head>
 <body>
 
-    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[500] hidden flex flex-col items-center justify-center">
+    <div id="preloading-bar"></div>
+    <div id="loading-overlay" class="fixed inset-0 bg-white/95 z-[500] hidden flex flex-col items-center justify-center">
         <div class="animate-bounce text-5xl">ʕ•ᴥ•ʔ</div>
-        <p class="font-bold text-pink-400 mt-4">Bubu is fast at work...</p>
+        <p id="loading-text" class="font-bold text-pink-400 mt-4">Bubu is gathering pages...</p>
     </div>
 
     <canvas id="motion-canvas"></canvas>
@@ -144,12 +147,29 @@
             </div>
         </div>
         <h1 class="text-3xl font-bold mb-2 text-[#4a3728]" style="font-family: 'Gaegu', cursive;">BusayBook</h1>
-        <p class="text-slate-400 mb-8 max-w-xs font-medium text-sm">Ultra-responsive Reading Mode 🐾</p>
-        <label for="pdf-upload" class="bubbly-btn text-lg cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-            START READING
-        </label>
-        <input type="file" id="pdf-upload" accept="application/pdf" class="hidden">
+        <p class="text-slate-400 mb-8 max-w-xs font-medium text-sm">Instant Pages & Fade Transitions 🐾</p>
+        
+        <div class="flex flex-col items-center gap-4">
+            <label for="pdf-upload" class="bubbly-btn text-lg cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                CHOOSE BOOK
+            </label>
+            <input type="file" id="pdf-upload" accept="application/pdf" class="hidden">
+
+            <button id="install-btn" class="bubbly-btn bg-[#fcd34d] shadow-[0_6px_0_#fbbf24] text-[#78350f] text-sm py-3 px-6 hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                INSTALL BUSAY
+            </button>
+
+            <button id="update-btn" class="bubbly-btn bg-[#60a5fa] shadow-[0_6px_0_#3b82f6] text-white text-sm py-3 px-6 hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 2v6h6"/></svg>
+                CHECK UPDATE
+            </button>
+
+            <button id="note-btn" class="mt-2 p-3 bg-pink-50 text-pink-400 rounded-full shadow-sm hover:bg-pink-100 transition-colors active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </button>
+        </div>
     </div>
 
     <div id="reader-container">
@@ -176,7 +196,7 @@
         <div id="tap-center" onclick="toggleHUD()"></div>
 
         <div id="book-stage">
-            <canvas id="page-canvas"></canvas>
+            <!-- Canvas layers will be injected here -->
         </div>
     </div>
 
@@ -185,60 +205,141 @@
         <div class="flex items-center justify-between mb-8">
             <h2 class="text-xl font-bold" style="font-family: 'Gaegu';">Bubu's Settings</h2>
             <div class="flex gap-2">
-                <button id="style-toggle" class="bg-pink-50 text-pink-500 px-3 py-1.5 rounded-full text-[9px] font-bold border border-pink-200">HEARTS</button>
-                <button id="pattern-toggle" class="bg-blue-50 text-blue-500 px-3 py-1.5 rounded-full text-[9px] font-bold border border-blue-200">PERIPHERAL</button>
+                <button id="style-toggle" class="bg-pink-50 text-pink-500 px-3 py-1.5 rounded-full text-[9px] font-bold border border-pink-200 uppercase">Dots</button>
+                <button id="pattern-toggle" class="bg-blue-50 text-blue-500 px-3 py-1.5 rounded-full text-[9px] font-bold border border-blue-200 uppercase">Peripheral</button>
             </div>
         </div>
         <div class="space-y-6">
             <div>
                 <div class="flex justify-between text-xs mb-3">
-                    <span class="font-bold text-slate-400">SPEED SENSITIVITY</span>
+                    <span class="font-bold text-slate-400 uppercase">Response speed</span>
                     <span id="sense-val" class="text-pink-400 font-bold">1.5x</span>
                 </div>
                 <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="1.5">
             </div>
             <div>
                 <div class="flex justify-between text-xs mb-3">
-                    <span class="font-bold text-slate-400">VISIBILITY</span>
+                    <span class="font-bold text-slate-400 uppercase">Opacity</span>
                     <span id="opacity-val" class="text-pink-400 font-bold">40%</span>
                 </div>
                 <input type="range" id="opacity" min="0.1" max="0.9" step="0.1" value="0.4">
             </div>
         </div>
-        <button onclick="toggleSettings()" class="w-full mt-8 py-3.5 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs">Save & Close</button>
+        <button onclick="toggleSettings()" class="w-full mt-8 py-3.5 bg-pink-400 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs">Done</button>
+    </div>
+
+    <!-- Dudu's Love Note Modal -->
+    <div id="dudu-note-modal" class="fixed inset-0 bg-black/40 z-[600] hidden flex-col items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-[40px] p-10 max-w-sm w-full text-center shadow-2xl border-4 border-pink-100">
+            <div class="text-7xl mb-6 animate-bounce">💖</div>
+            <h2 class="text-3xl font-bold text-[#8b5e3c]" style="font-family: 'Gaegu', cursive;">Dudu loves you sooo much!</h2>
+            <button id="close-note" class="mt-8 bubbly-btn bg-pink-400 shadow-[0_6px_0_#f472b6] py-3 px-8 text-sm uppercase tracking-widest">Aww, me too! ʕ•ᴥ•ʔ</button>
+        </div>
     </div>
 
     <script type="module">
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        const canvas = document.getElementById('motion-canvas');
-        const ctx = canvas.getContext('2d');
-        const pageCanvas = document.getElementById('page-canvas');
-        const pageCtx = pageCanvas.getContext('2d');
+        const motionCanvas = document.getElementById('motion-canvas');
+        const mctx = motionCanvas.getContext('2d');
+        const bookStage = document.getElementById('book-stage');
         const focusHint = document.getElementById('focus-hint');
         const loading = document.getElementById('loading-overlay');
+        const preloadBar = document.getElementById('preloading-bar');
 
-        // Global State
         let pdfDoc = null;
         let hudTimeout = null;
         let currentUser = null;
         let db = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'busaybook-v2';
 
+        // --- PWA & NOTE LOGIC ---
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+        const updateBtn = document.getElementById('update-btn');
+        
+        // Dynamic Manifest for PWA capabilities
+        const manifest = {
+            name: "BusayBook", short_name: "BusayBook", start_url: window.location.href, display: "standalone",
+            background_color: "#ffffff", theme_color: "#ffb7b2",
+            icons: [{ src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7wn5C7PC90ZXh0Pjwvc3ZnPg==", sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+        };
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'}));
+        document.head.appendChild(link);
+
+        function isPwaInstalled() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+
+        if (isPwaInstalled()) {
+            updateBtn.classList.remove('hidden');
+        } else {
+            installBtn.classList.remove('hidden'); // Fallback visibility
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); deferredPrompt = e;
+            if (!isPwaInstalled()) { installBtn.classList.remove('hidden'); updateBtn.classList.add('hidden'); }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null; installBtn.classList.add('hidden'); updateBtn.classList.remove('hidden');
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') deferredPrompt = null;
+            } else {
+                alert("To install: Tap 'Share' > 'Add to Home Screen' (iOS) or browser menu > 'Install App' (Android).");
+            }
+        });
+
+        updateBtn.addEventListener('click', () => {
+            if ('caches' in window) caches.keys().then(names => names.forEach(n => caches.delete(n)));
+            window.location.reload(true);
+        });
+
+        document.getElementById('note-btn').addEventListener('click', () => {
+            document.getElementById('dudu-note-modal').classList.remove('hidden');
+            document.getElementById('dudu-note-modal').classList.add('flex');
+        });
+        document.getElementById('close-note').addEventListener('click', () => {
+            document.getElementById('dudu-note-modal').classList.add('hidden');
+            document.getElementById('dudu-note-modal').classList.remove('flex');
+        });
+
         const state = {
             active: false,
             sensitivity: 1.5,
             opacity: 0.4,
             gridStyle: 'dots',
-            dotsPattern: 'peripheral', // 'full' or 'peripheral'
+            dotsPattern: 'peripheral',
             currentPage: 1,
             totalPages: 0,
             hudVisible: false,
             dotSize: 8,
             targetX: 0, targetY: 0,
             currentX: 0, currentY: 0,
-            lerpFactor: 0.08
+            lerpFactor: 0.08,
+            pageCanvases: []
         };
+
+        // Utility: Debounce for auto-saving
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
 
         // --- STORAGE ---
         async function initStorage() {
@@ -254,50 +355,59 @@
                     await window.fb.signInAnonymously(auth);
                 }
             };
+            
             await initAuth();
-            window.fb.onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    currentUser = user;
-                    loadSettings();
+            window.fb.onAuthStateChanged(auth, user => {
+                if (user) { 
+                    currentUser = user; 
+                    loadSettings(); 
                 }
             });
         }
 
         async function loadSettings() {
             if (!currentUser) return;
-            const docRef = window.fb.doc(db, 'artifacts', appId, 'users', currentUser.uid, 'config', 'settings');
-            const snap = await window.fb.getDoc(docRef);
-            if (snap.exists()) {
-                const data = snap.data();
-                state.sensitivity = data.sensitivity ?? 1.5;
-                state.opacity = data.opacity ?? 0.4;
-                state.gridStyle = data.gridStyle ?? 'dots';
-                state.dotsPattern = data.dotsPattern ?? 'peripheral';
-                updateUIFromState();
+            try {
+                const docRef = window.fb.doc(db, 'artifacts', appId, 'users', currentUser.uid, 'config', 'settings');
+                const snap = await window.fb.getDoc(docRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    state.sensitivity = data.sensitivity ?? 1.5;
+                    state.opacity = data.opacity ?? 0.4;
+                    state.gridStyle = data.gridStyle ?? 'dots';
+                    state.dotsPattern = data.dotsPattern ?? 'peripheral';
+                    updateUIFromState();
+                }
+            } catch (err) {
+                console.error("Load failed:", err);
             }
         }
 
-        async function saveSettings() {
+        const debouncedSave = debounce(async () => {
             if (!currentUser) return;
-            const docRef = window.fb.doc(db, 'artifacts', appId, 'users', currentUser.uid, 'config', 'settings');
-            await window.fb.setDoc(docRef, {
-                sensitivity: state.sensitivity,
-                opacity: state.opacity,
-                gridStyle: state.gridStyle,
-                dotsPattern: state.dotsPattern
-            });
-        }
+            try {
+                const docRef = window.fb.doc(db, 'artifacts', appId, 'users', currentUser.uid, 'config', 'settings');
+                await window.fb.setDoc(docRef, {
+                    sensitivity: state.sensitivity,
+                    opacity: state.opacity,
+                    gridStyle: state.gridStyle,
+                    dotsPattern: state.dotsPattern
+                });
+            } catch (err) {
+                console.error("Save failed:", err);
+            }
+        }, 1000);
 
         function updateUIFromState() {
             document.getElementById('sensitivity').value = state.sensitivity;
             document.getElementById('opacity').value = state.opacity;
             document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
             document.getElementById('opacity-val').innerText = Math.round(state.opacity * 100) + '%';
-            document.getElementById('style-toggle').innerText = state.gridStyle === 'dots' ? 'DOTS' : 'HEARTS';
+            document.getElementById('style-toggle').innerText = state.gridStyle.toUpperCase();
             document.getElementById('pattern-toggle').innerText = state.dotsPattern.toUpperCase();
         }
 
-        // --- PDF RENDERING ---
+        // --- PDF ENGINE ---
         async function handlePdfUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -308,43 +418,88 @@
                 const arrayBuffer = await file.arrayBuffer();
                 pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 state.totalPages = pdfDoc.numPages;
-                await renderPage(state.currentPage);
+                state.pageCanvases = new Array(state.totalPages);
+                
+                // Clear old stage
+                bookStage.innerHTML = '';
+                state.currentPage = 1;
+
+                // Step 1: Render First Page Immediately
+                await preRenderPage(1);
+                setActivePage(1);
                 startReader();
+
+                // Step 2: Background Preload rest of the pages
+                preloadAllPages();
+
             } catch (err) {
                 console.error(err);
-            } finally {
                 loading.style.display = 'none';
             }
         }
 
-        async function renderPage(num) {
-            if (!pdfDoc) return;
+        async function preRenderPage(num) {
+            if (state.pageCanvases[num-1]) return state.pageCanvases[num-1];
+
             const page = await pdfDoc.getPage(num);
             const dpr = window.devicePixelRatio || 1;
-            
-            // Fast scale calculation
             const baseViewport = page.getViewport({ scale: 1 });
             const targetWidth = window.innerWidth * 0.95;
             const scale = targetWidth / baseViewport.width;
             const viewport = page.getViewport({ scale: scale });
 
-            pageCanvas.width = viewport.width * dpr;
-            pageCanvas.height = viewport.height * dpr;
-            pageCanvas.style.width = viewport.width + 'px';
-            pageCanvas.style.height = viewport.height + 'px';
+            const canvas = document.createElement('canvas');
+            canvas.className = 'page-layer';
+            canvas.id = `page-${num}`;
+            const ctx = canvas.getContext('2d');
 
-            pageCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            pageCanvas.style.opacity = '0.5'; // Visual feedback for rendering
+            canvas.width = viewport.width * dpr;
+            canvas.height = viewport.height * dpr;
+            canvas.style.width = viewport.width + 'px';
+            canvas.style.height = viewport.height + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            await page.render({ canvasContext: pageCtx, viewport: viewport }).promise;
-            pageCanvas.style.opacity = '1';
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            
+            bookStage.appendChild(canvas);
+            state.pageCanvases[num-1] = canvas;
+            return canvas;
+        }
+
+        async function preloadAllPages() {
+            loading.style.display = 'none';
+            
+            for (let i = 2; i <= state.totalPages; i++) {
+                // Check if user reloaded different pdf mid-load
+                if (!pdfDoc) break;
+                await preRenderPage(i);
+                preloadBar.style.width = `${(i / state.totalPages) * 100}%`;
+                if (i % 3 === 0) await new Promise(r => setTimeout(r, 10));
+            }
+            
+            setTimeout(() => preloadBar.style.width = '0%', 1000);
+        }
+
+        function setActivePage(num) {
+            const current = document.querySelector('.page-layer.active');
+            if (current) current.classList.remove('active');
+            
+            const next = state.pageCanvases[num-1];
+            if (next) {
+                next.classList.add('active');
+            } else {
+                // Fallback for if page isn't pre-rendered yet
+                preRenderPage(num).then(canvas => canvas.classList.add('active'));
+            }
+            
+            state.currentPage = num;
             updateHUDContent();
         }
 
-        function nextPage() { if (state.currentPage < state.totalPages) { state.currentPage++; renderPage(state.currentPage); autoHideHUD(); } }
-        function prevPage() { if (state.currentPage > 1) { state.currentPage--; renderPage(state.currentPage); autoHideHUD(); } }
+        function nextPage() { if (state.currentPage < state.totalPages) { setActivePage(state.currentPage + 1); autoHideHUD(); } }
+        function prevPage() { if (state.currentPage > 1) { setActivePage(state.currentPage - 1); autoHideHUD(); } }
 
-        // --- INTERACTION ---
+        // --- HUD ---
         function toggleHUD() {
             state.hudVisible = !state.hudVisible;
             document.body.classList.toggle('hud-active', state.hudVisible);
@@ -362,7 +517,8 @@
         function toggleSettings() { 
             const sheet = document.getElementById('settings-sheet');
             sheet.classList.toggle('open');
-            if (!sheet.classList.contains('open')) saveSettings();
+            // Final save check on close
+            if (!sheet.classList.contains('open')) debouncedSave();
         }
 
         function updateHUDContent() {
@@ -374,6 +530,7 @@
 
         // --- MOTION ENGINE ---
         function startReader() {
+            if (state.active) return;
             const init = () => {
                 state.active = true;
                 document.getElementById('permission-screen').style.display = 'none';
@@ -384,9 +541,8 @@
                     state.targetX = -ax * 45 * state.sensitivity;
                     state.targetY = ay * 45 * state.sensitivity;
                 });
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                showFocusHint();
+                motionCanvas.width = window.innerWidth;
+                motionCanvas.height = window.innerHeight;
                 requestAnimationFrame(updateLoop);
             };
             
@@ -403,18 +559,18 @@
         }
 
         function drawMotion() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            mctx.clearRect(0, 0, motionCanvas.width, motionCanvas.height);
             const spacing = 75;
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+            const centerX = motionCanvas.width / 2;
+            const centerY = motionCanvas.height / 2;
             const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
 
-            for (let x = -spacing; x < canvas.width + spacing; x += spacing) {
-                for (let y = -spacing; y < canvas.height + spacing; y += spacing) {
-                    let dx = (x + state.currentX) % (canvas.width + spacing);
-                    let dy = (y + state.currentY) % (canvas.height + spacing);
-                    if (dx < 0) dx += (canvas.width + spacing);
-                    if (dy < 0) dy += (canvas.height + spacing);
+            for (let x = -spacing; x < motionCanvas.width + spacing; x += spacing) {
+                for (let y = -spacing; y < motionCanvas.height + spacing; y += spacing) {
+                    let dx = (x + state.currentX) % (motionCanvas.width + spacing);
+                    let dy = (y + state.currentY) % (motionCanvas.height + spacing);
+                    if (dx < 0) dx += (motionCanvas.width + spacing);
+                    if (dy < 0) dy += (motionCanvas.height + spacing);
                     
                     let alpha = 1.0;
                     if (state.dotsPattern === 'peripheral') {
@@ -423,41 +579,49 @@
                     }
                     if (alpha < 0.02) continue;
 
-                    ctx.fillStyle = `rgba(255, 183, 178, ${state.opacity * alpha})`;
+                    mctx.fillStyle = `rgba(255, 183, 178, ${state.opacity * alpha})`;
                     if (state.gridStyle === 'dots') {
-                        ctx.beginPath(); ctx.arc(dx, dy, state.dotSize / 2, 0, Math.PI * 2); ctx.fill();
+                        mctx.beginPath(); mctx.arc(dx, dy, state.dotSize / 2, 0, Math.PI * 2); mctx.fill();
                     } else {
-                        ctx.font = `${state.dotSize * 2.5}px serif`;
-                        ctx.fillText('❤', dx - state.dotSize, dy + state.dotSize);
+                        mctx.font = `${state.dotSize * 2.5}px serif`;
+                        mctx.fillText('❤', dx - state.dotSize, dy + state.dotSize);
                     }
                 }
             }
         }
 
-        // --- INIT ---
         window.addEventListener('load', () => {
             initStorage();
-            
             document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
             
+            // Sensitivity Slider
             document.getElementById('sensitivity').oninput = e => {
                 state.sensitivity = parseFloat(e.target.value);
                 document.getElementById('sense-val').innerText = state.sensitivity.toFixed(1) + 'x';
+                debouncedSave();
             };
+            
+            // Opacity Slider
             document.getElementById('opacity').oninput = e => {
                 state.opacity = parseFloat(e.target.value);
                 document.getElementById('opacity-val').innerText = Math.round(state.opacity * 100) + '%';
+                debouncedSave();
             };
+            
+            // Heart/Dot Toggle
             document.getElementById('style-toggle').onclick = e => {
                 state.gridStyle = state.gridStyle === 'dots' ? 'hearts' : 'dots';
                 e.target.innerText = state.gridStyle.toUpperCase();
+                debouncedSave();
             };
+            
+            // Full/Peripheral Toggle
             document.getElementById('pattern-toggle').onclick = e => {
                 state.dotsPattern = state.dotsPattern === 'full' ? 'peripheral' : 'full';
                 e.target.innerText = state.dotsPattern.toUpperCase();
+                debouncedSave();
             };
 
-            // Swipe logic
             let touchStartX = 0;
             window.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
             window.addEventListener('touchend', e => {
@@ -467,9 +631,13 @@
         });
 
         window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if (pdfDoc) renderPage(state.currentPage);
+            motionCanvas.width = window.innerWidth;
+            motionCanvas.height = window.innerHeight;
+            if (pdfDoc) {
+                // If window resizes, we likely need to re-render to keep crispness
+                // For simplicity, we just trigger a page update
+                setActivePage(state.currentPage);
+            }
         });
 
         window.prevPage = prevPage;
