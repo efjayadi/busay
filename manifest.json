@@ -1,0 +1,17 @@
+{
+  "name": "BusayBook",
+  "short_name": "BusayBook",
+  "start_url": "./motion_relief.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffb7b2",
+  "description": "Ultra-Smooth Reading Mode & Motion Sickness Relief.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7wn5C7PC90ZXh0Pjwvc3ZnPg==",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
